@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.web.WebView?>
+
+<VBox fx:id="rootContainer" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.jirainsight.controller.IssueDetailsController" spacing="15.0">
+   <children>
+      <!-- Issue Header -->
+      <VBox spacing="8.0">
+         <children>
+            <HBox alignment="CENTER_LEFT" spacing="10.0">
+               <children>
+                  <Label fx:id="issueKeyLabel" styleClass="issue-key-large" text="ISSUE-123" />
+                  <Label fx:id="statusLabel" styleClass="issue-status" text="In Progress" />
+                  <Label fx:id="priorityLabel" styleClass="issue-priority" text="High" />
+               </children>
+            </HBox>
+            <Label fx:id="issueSummaryLabel" styleClass="issue-summary-large" text="Issue Summary" wrapText="true" />
+         </children>
+      </VBox>
+      
+      <!-- Issue Metadata -->
+      <GridPane hgap="15.0" vgap="8.0">
+        <columnConstraints>
+          <ColumnConstraints hgrow="NEVER" minWidth="80.0" />
+          <ColumnConstraints hgrow="ALWAYS" minWidth="150.0" />
+          <ColumnConstraints hgrow="NEVER" minWidth="80.0" />
+          <ColumnConstraints hgrow="ALWAYS" minWidth="150.0" />
+        </columnConstraints>
+        <rowConstraints>
+          <RowConstraints vgrow="NEVER" />
+          <RowConstraints vgrow="NEVER" />
+          <RowConstraints vgrow="NEVER" />
+          <RowConstraints vgrow="NEVER" />
+        </rowConstraints>
+         <children>
+            <!-- Row 1 -->
+            <Label styleClass="metadata-label" text="Assignee:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <Label fx:id="assigneeLabel" styleClass="metadata-value" text="John Doe" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+            <Label styleClass="metadata-label" text="Reporter:" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+            <Label fx:id="reporterLabel" styleClass="metadata-value" text="Jane Smith" GridPane.columnIndex="3" GridPane.rowIndex="0" />
+            
+            <!-- Row 2 -->
+            <Label styleClass="metadata-label" text="Sprint:" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+            <Label fx:id="sprintLabel" styleClass="metadata-value" text="Sprint 1" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+            <Label styleClass="metadata-label" text="Type:" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+            <Label fx:id="issueTypeLabel" styleClass="metadata-value" text="Story" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+            
+            <!-- Row 3 -->
+            <Label styleClass="metadata-label" text="Created:" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+            <Label fx:id="createdLabel" styleClass="metadata-value" text="Jan 15, 2024" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+            <Label styleClass="metadata-label" text="Updated:" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+            <Label fx:id="updatedLabel" styleClass="metadata-value" text="Jan 20, 2024" GridPane.columnIndex="3" GridPane.rowIndex="2" />
+         </children>
+      </GridPane>
+      
+      <Separator />
+      
+      <!-- Description Section -->
+      <VBox fx:id="descriptionContainer" spacing="8.0">
+         <children>
+            <Label styleClass="section-header" text="Description" />
+            <WebView fx:id="descriptionWebView" prefHeight="150.0" />
+         </children>
+      </VBox>
+      
+      <!-- Subtasks Section -->
+      <VBox fx:id="subtasksContainer" spacing="8.0">
+         <children>
+            <Label styleClass="section-header" text="Subtasks" />
+            <VBox fx:id="subtasksList" spacing="5.0" />
+         </children>
+      </VBox>
+      
+      <!-- Comments Section -->
+      <VBox fx:id="commentsContainer" spacing="8.0">
+         <children>
+            <Label styleClass="section-header" text="Comments" />
+            <ScrollPane fitToWidth="true" maxHeight="300.0" prefHeight="200.0">
+               <content>
+                  <VBox fx:id="commentsList" spacing="10.0">
+                     <padding>
+                        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+                     </padding>
+                  </VBox>
+               </content>
+            </ScrollPane>
+         </children>
+      </VBox>
+   </children>
+   <padding>
+      <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+   </padding>
+</VBox>

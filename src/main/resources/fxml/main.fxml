@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.jirainsight.controller.MainController">
+   <top>
+      <VBox>
+         <children>
+            <!-- Menu Bar -->
+            <MenuBar fx:id="menuBar">
+              <menus>
+                <Menu fx:id="fileMenu" mnemonicParsing="false" text="File">
+                  <items>
+                    <MenuItem fx:id="connectMenuItem" mnemonicParsing="false" text="Connect to Jira..." />
+                    <MenuItem fx:id="disconnectMenuItem" mnemonicParsing="false" text="Disconnect" />
+                    <SeparatorMenuItem mnemonicParsing="false" />
+                    <MenuItem fx:id="exitMenuItem" mnemonicParsing="false" text="Exit" />
+                  </items>
+                </Menu>
+                <Menu fx:id="helpMenu" mnemonicParsing="false" text="Help">
+                  <items>
+                    <MenuItem fx:id="aboutMenuItem" mnemonicParsing="false" text="About" />
+                  </items>
+                </Menu>
+              </menus>
+            </MenuBar>
+            
+            <!-- Toolbar -->
+            <ToolBar fx:id="toolBar">
+              <items>
+                <Button fx:id="connectButton" mnemonicParsing="false" text="Connect to Jira" />
+                <Separator orientation="VERTICAL" />
+                <Label text="Status:" />
+                <Label fx:id="connectionStatusLabel" text="Not Connected" />
+              </items>
+            </ToolBar>
+         </children>
+      </VBox>
+   </top>
+   
+   <center>
+      <StackPane>
+         <children>
+            <!-- Welcome Pane (shown when not connected) -->
+            <VBox fx:id="welcomePane" alignment="CENTER" spacing="20.0">
+               <children>
+                  <Label fx:id="welcomeTitle" styleClass="welcome-title" text="Welcome to JiraInsight Desktop" />
+                  <Label fx:id="welcomeMessage" styleClass="welcome-message" text="Connect to your Jira instance to get started" textAlignment="CENTER" wrapText="true" />
+                  <Button fx:id="welcomeConnectButton" mnemonicParsing="false" styleClass="primary-button" text="Connect to Jira" />
+               </children>
+               <padding>
+                  <Insets bottom="50.0" left="50.0" right="50.0" top="50.0" />
+               </padding>
+            </VBox>
+            
+            <!-- Main Content Pane (shown when connected) -->
+            <VBox fx:id="mainContentPane" spacing="10.0" visible="false">
+               <children>
+                  <!-- Connection Status -->
+                  <HBox alignment="CENTER_LEFT" spacing="10.0">
+                     <children>
+                        <Label fx:id="connectedDomainLabel" styleClass="connection-status" text="Connected to domain" />
+                     </children>
+                     <padding>
+                        <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
+                     </padding>
+                  </HBox>
+                  
+                  <!-- Search Section -->
+                  <VBox spacing="10.0">
+                     <children>
+                        <Label styleClass="section-title" text="Search Issues" />
+                        
+                        <TabPane fx:id="searchTabPane" tabClosingPolicy="UNAVAILABLE">
+                          <tabs>
+                            <Tab fx:id="quickSearchTab" text="Quick Search">
+                              <content>
+                                <VBox spacing="10.0">
+                                   <children>
+                                      <Label text="Enter a Jira issue key (e.g., PROJ-123)" />
+                                      <HBox spacing="10.0">
+                                         <children>
+                                            <TextField fx:id="quickSearchField" promptText="Issue key..." HBox.hgrow="ALWAYS" />
+                                            <Button fx:id="quickSearchButton" mnemonicParsing="false" text="Search" />
+                                         </children>
+                                      </HBox>
+                                   </children>
+                                   <padding>
+                                      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                                   </padding>
+                                </VBox>
+                              </content>
+                            </Tab>
+                            <Tab fx:id="jqlSearchTab" text="JQL Search">
+                              <content>
+                                <VBox spacing="10.0">
+                                   <children>
+                                      <Label text="Enter a JQL query" />
+                                      <TextArea fx:id="jqlQueryArea" prefRowCount="3" promptText="project = &quot;TEST&quot; AND status = &quot;In Progress&quot;" />
+                                      <HBox alignment="CENTER_RIGHT">
+                                         <children>
+                                            <Button fx:id="jqlSearchButton" mnemonicParsing="false" text="Execute Query" />
+                                         </children>
+                                      </HBox>
+                                   </children>
+                                   <padding>
+                                      <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                                   </padding>
+                                </VBox>
+                              </content>
+                            </Tab>
+                          </tabs>
+                        </TabPane>
+                     </children>
+                     <padding>
+                        <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
+                     </padding>
+                  </VBox>
+                  
+                  <!-- Results Section -->
+                  <VBox spacing="5.0" VBox.vgrow="ALWAYS">
+                     <children>
+                        <Label fx:id="resultsLabel" styleClass="section-title" text="No search results" />
+                        
+                        <SplitPane fx:id="resultsSplitPane" dividerPositions="0.4" VBox.vgrow="ALWAYS">
+                          <items>
+                            <!-- Issue List -->
+                            <VBox fx:id="issueListPane" spacing="5.0">
+                               <children>
+                                  <ListView fx:id="issueListView" VBox.vgrow="ALWAYS" />
+                               </children>
+                            </VBox>
+                            
+                            <!-- Issue Details -->
+                            <VBox fx:id="issueDetailsPane" spacing="5.0">
+                               <children>
+                                  <Label fx:id="issueDetailsLabel" styleClass="details-title" text="Select an issue to view details" />
+                                  <ScrollPane fx:id="issueDetailsScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS">
+                                     <content>
+                                        <VBox spacing="10.0">
+                                           <padding>
+                                              <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                                           </padding>
+                                        </VBox>
+                                     </content>
+                                  </ScrollPane>
+                               </children>
+                            </VBox>
+                          </items>
+                        </SplitPane>
+                     </children>
+                     <padding>
+                        <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
+                     </padding>
+                  </VBox>
+               </children>
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+            </VBox>
+         </children>
+      </StackPane>
+   </center>
+   
+   <bottom>
+      <HBox alignment="CENTER_LEFT" spacing="10.0">
+         <children>
+            <ProgressBar fx:id="progressBar" prefWidth="100.0" visible="false" />
+            <Label fx:id="statusLabel" text="Ready" />
+         </children>
+         <padding>
+            <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
+         </padding>
+      </HBox>
+   </bottom>
+</BorderPane>

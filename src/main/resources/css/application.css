@@ -1,0 +1,359 @@
+/* JiraInsight Desktop Application Styles */
+
+/* Root styles */
+.root {
+    -fx-font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #f5f5f5;
+}
+
+/* Welcome screen styles */
+.welcome-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.welcome-message {
+    -fx-font-size: 14px;
+    -fx-text-fill: #7f8c8d;
+    -fx-max-width: 400px;
+}
+
+/* Button styles */
+.primary-button {
+    -fx-background-color: #3498db;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 16px;
+    -fx-background-radius: 4px;
+    -fx-cursor: hand;
+}
+
+.primary-button:hover {
+    -fx-background-color: #2980b9;
+}
+
+.primary-button:pressed {
+    -fx-background-color: #21618c;
+}
+
+.primary-button:disabled {
+    -fx-background-color: #bdc3c7;
+    -fx-cursor: default;
+}
+
+/* Section titles */
+.section-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.details-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #34495e;
+}
+
+/* Connection status */
+.connection-status {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #27ae60;
+}
+
+.status-connected {
+    -fx-text-fill: #27ae60;
+    -fx-font-weight: bold;
+}
+
+.status-disconnected {
+    -fx-text-fill: #e74c3c;
+    -fx-font-weight: bold;
+}
+
+/* Issue list cell styles */
+.issue-key {
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-text-fill: #2c3e50;
+}
+
+.issue-summary {
+    -fx-font-size: 13px;
+    -fx-text-fill: #2c3e50;
+    -fx-wrap-text: true;
+}
+
+.issue-assignee {
+    -fx-font-size: 11px;
+    -fx-text-fill: #7f8c8d;
+}
+
+.issue-priority {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+/* Status badges */
+.issue-status {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 2px 6px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: white;
+}
+
+.status-done {
+    -fx-background-color: #27ae60;
+}
+
+.status-in-progress {
+    -fx-background-color: #f39c12;
+}
+
+.status-new {
+    -fx-background-color: #95a5a6;
+}
+
+.status-default {
+    -fx-background-color: #3498db;
+}
+
+/* Priority colors */
+.priority-highest {
+    -fx-text-fill: #c0392b;
+}
+
+.priority-high {
+    -fx-text-fill: #e67e22;
+}
+
+.priority-medium {
+    -fx-text-fill: #f39c12;
+}
+
+.priority-low {
+    -fx-text-fill: #27ae60;
+}
+
+.priority-lowest {
+    -fx-text-fill: #95a5a6;
+}
+
+.priority-none {
+    -fx-text-fill: #7f8c8d;
+}
+
+/* Dialog styles */
+.dialog-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.dialog-subtitle {
+    -fx-font-size: 13px;
+    -fx-text-fill: #7f8c8d;
+}
+
+.help-text {
+    -fx-font-size: 11px;
+    -fx-text-fill: #95a5a6;
+}
+
+.help-link {
+    -fx-font-size: 11px;
+    -fx-text-fill: #3498db;
+}
+
+.help-link:hover {
+    -fx-text-fill: #2980b9;
+}
+
+/* Form validation */
+.error {
+    -fx-border-color: #e74c3c;
+    -fx-border-width: 1px;
+}
+
+/* List view styles */
+.list-view {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+}
+
+.list-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-border-style: solid;
+    -fx-padding: 0;
+}
+
+.list-cell:selected {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #3498db;
+}
+
+.list-cell:hover {
+    -fx-background-color: #f8f9fa;
+}
+
+/* Tab pane styles */
+.tab-pane {
+    -fx-background-color: white;
+}
+
+.tab {
+    -fx-background-color: #ecf0f1;
+    -fx-text-fill: #2c3e50;
+}
+
+.tab:selected {
+    -fx-background-color: white;
+    -fx-text-fill: #2c3e50;
+}
+
+/* Text area styles */
+.text-area {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+}
+
+.text-area:focused {
+    -fx-border-color: #3498db;
+}
+
+/* Text field styles */
+.text-field {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3px;
+    -fx-padding: 6px 8px;
+}
+
+.text-field:focused {
+    -fx-border-color: #3498db;
+}
+
+/* Scroll pane styles */
+.scroll-pane {
+    -fx-background-color: white;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 1px;
+}
+
+/* Split pane styles */
+.split-pane {
+    -fx-background-color: #f5f5f5;
+}
+
+.split-pane-divider {
+    -fx-background-color: #bdc3c7;
+    -fx-padding: 0 1px 0 1px;
+}
+
+/* Progress bar styles */
+.progress-bar {
+    -fx-accent: #3498db;
+}
+
+/* Menu bar styles */
+.menu-bar {
+    -fx-background-color: #ecf0f1;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 0 0 1px 0;
+}
+
+/* Tool bar styles */
+.tool-bar {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #bdc3c7;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 5px;
+}
+
+/* Issue details styles */
+.issue-key-large {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+.issue-summary-large {
+    -fx-font-size: 16px;
+    -fx-text-fill: #2c3e50;
+    -fx-wrap-text: true;
+}
+
+.metadata-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #7f8c8d;
+}
+
+.metadata-value {
+    -fx-font-size: 12px;
+    -fx-text-fill: #2c3e50;
+}
+
+.section-header {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50;
+}
+
+/* Subtask styles */
+.subtask-item {
+    -fx-background-color: #f8f9fa;
+    -fx-border-color: #e9ecef;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.subtask-key {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #495057;
+}
+
+.subtask-status {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 2px 6px;
+    -fx-background-radius: 3px;
+    -fx-text-fill: white;
+}
+
+.subtask-summary {
+    -fx-font-size: 12px;
+    -fx-text-fill: #495057;
+    -fx-wrap-text: true;
+}
+
+/* Comment styles */
+.comment-item {
+    -fx-background-color: white;
+    -fx-border-color: #e9ecef;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+}
+
+.comment-author {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #495057;
+}
+
+.comment-date {
+    -fx-font-size: 11px;
+    -fx-text-fill: #6c757d;
+}
