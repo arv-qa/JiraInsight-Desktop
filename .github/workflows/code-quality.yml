@@ -1,0 +1,161 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  format-check:
+    name: Code Formatting Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Check code formatting
+      run: |
+        mvn spotless:check
+        
+    - name: Generate formatting report
+      if: failure()
+      run: |
+        echo "Code formatting issues detected. Run 'mvn spotless:apply' to fix them."
+        mvn spotless:apply --dry-run
+
+  lint:
+    name: Code Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Run SpotBugs
+      run: |
+        mvn compile spotbugs:check
+        
+    - name: Upload SpotBugs report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: spotbugs-report
+        path: target/spotbugsXml.xml
+        retention-days: 30
+        
+    - name: Run PMD
+      run: |
+        mvn pmd:check
+        
+    - name: Upload PMD report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: pmd-report
+        path: target/site/pmd.html
+        retention-days: 30
+
+  javadoc-check:
+    name: Javadoc Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Generate Javadoc
+      run: |
+        mvn javadoc:javadoc
+        
+    - name: Check Javadoc warnings
+      run: |
+        if grep -q "warning" target/site/apidocs/javadoc.log 2>/dev/null; then
+          echo "Javadoc warnings detected:"
+          grep "warning" target/site/apidocs/javadoc.log
+          exit 1
+        else
+          echo "No Javadoc warnings found"
+        fi
+        
+    - name: Upload Javadoc
+      uses: actions/upload-artifact@v3
+      with:
+        name: javadoc
+        path: target/site/apidocs/
+        retention-days: 30
+
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Run tests with coverage
+      run: |
+        mvn clean test jacoco:report
+        
+    - name: Generate coverage report
+      run: |
+        mvn jacoco:report
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: target/site/jacoco/jacoco.xml
+        flags: unittests
+        name: codecov-umbrella
+        
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: target/site/jacoco/
+        retention-days: 30
+        
+    - name: Check coverage threshold
+      run: |
+        # Extract coverage percentage from jacoco report
+        COVERAGE=$(grep -o 'Total[^%]*%' target/site/jacoco/index.html | grep -o '[0-9]*%' | head -1 | tr -d '%')
+        echo "Current coverage: ${COVERAGE}%"
+        
+        # Set minimum coverage threshold
+        THRESHOLD=70
+        
+        if [ "$COVERAGE" -lt "$THRESHOLD" ]; then
+          echo "Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+          exit 1
+        else
+          echo "Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+        fi

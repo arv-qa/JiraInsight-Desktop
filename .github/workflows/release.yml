@@ -1,0 +1,194 @@
+name: Release Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      release_type:
+        description: 'Type of release'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+    - name: Update version in POM
+      run: |
+        mvn versions:set -DnewVersion=${{ github.event.inputs.version }}
+        mvn versions:commit
+        
+    - name: Update CHANGELOG
+      run: |
+        # Create or update CHANGELOG.md
+        if [ ! -f CHANGELOG.md ]; then
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+        fi
+        
+        # Add new version entry
+        sed -i "3i\\## [${{ github.event.inputs.version }}] - $(date +%Y-%m-%d)\\n" CHANGELOG.md
+        
+    - name: Commit version changes
+      run: |
+        git add pom.xml CHANGELOG.md
+        git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+        git push origin main
+        
+    - name: Build release artifacts
+      run: |
+        mvn clean package -DskipTests
+        
+    - name: Run tests
+      run: |
+        mvn test
+        
+    - name: Create Git tag
+      run: |
+        git tag -a "v${{ github.event.inputs.version }}" -m "Release version ${{ github.event.inputs.version }}"
+        git push origin "v${{ github.event.inputs.version }}"
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        # Extract changes from CHANGELOG for this version
+        RELEASE_NOTES=$(sed -n "/## \[${{ github.event.inputs.version }}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+        
+        if [ -z "$RELEASE_NOTES" ]; then
+          RELEASE_NOTES="## JiraInsight Desktop v${{ github.event.inputs.version }}
+
+### What's New
+- Bug fixes and improvements
+- Performance enhancements
+- Updated dependencies
+
+### Installation
+1. Download the JAR file from the assets below
+2. Ensure Java 17+ is installed
+3. Run: \`java -jar jira-insight-desktop-${{ github.event.inputs.version }}.jar\`
+
+### System Requirements
+- Java 17 or higher
+- JavaFX 21 (included in the JAR)
+- 512MB RAM minimum
+- 100MB disk space
+
+### Support
+- Report issues: [GitHub Issues](https://github.com/${{ github.repository }}/issues)
+- Documentation: [README](https://github.com/${{ github.repository }}/blob/main/README.md)"
+        fi
+        
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: "v${{ github.event.inputs.version }}"
+        name: "JiraInsight Desktop v${{ github.event.inputs.version }}"
+        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+        files: |
+          target/*.jar
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Update development version
+      if: github.event.inputs.release_type != 'patch'
+      run: |
+        # Calculate next development version
+        CURRENT_VERSION="${{ github.event.inputs.version }}"
+        IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+        MAJOR=${VERSION_PARTS[0]}
+        MINOR=${VERSION_PARTS[1]}
+        PATCH=${VERSION_PARTS[2]}
+        
+        if [ "${{ github.event.inputs.release_type }}" == "major" ]; then
+          NEXT_VERSION="$((MAJOR + 1)).0.0-SNAPSHOT"
+        elif [ "${{ github.event.inputs.release_type }}" == "minor" ]; then
+          NEXT_VERSION="$MAJOR.$((MINOR + 1)).0-SNAPSHOT"
+        else
+          NEXT_VERSION="$MAJOR.$MINOR.$((PATCH + 1))-SNAPSHOT"
+        fi
+        
+        mvn versions:set -DnewVersion=$NEXT_VERSION
+        mvn versions:commit
+        
+        git add pom.xml
+        git commit -m "chore: prepare for next development iteration $NEXT_VERSION"
+        git push origin main
+
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - name: Create release announcement issue
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🎉 JiraInsight Desktop v${{ github.event.inputs.version }} Released!',
+            body: `## 🚀 New Release Available!
+
+**JiraInsight Desktop v${{ github.event.inputs.version }}** has been released!
+
+### 📥 Download
+- [Download JAR](https://github.com/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version }})
+- [View Release Notes](https://github.com/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version }})
+
+### 🔧 Installation
+1. Download the JAR file
+2. Ensure Java 17+ is installed
+3. Run: \`java -jar jira-insight-desktop-${{ github.event.inputs.version }}.jar\`
+
+### 📚 Documentation
+- [README](https://github.com/${{ github.repository }}/blob/main/README.md)
+- [User Guide](https://github.com/${{ github.repository }}/wiki)
+
+### 🐛 Found an Issue?
+Please report any bugs or feature requests in our [Issues](https://github.com/${{ github.repository }}/issues) section.
+
+---
+*This is an automated release announcement.*`,
+            labels: ['release', 'announcement']
+          })
