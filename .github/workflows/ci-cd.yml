@@ -29,7 +29,7 @@ jobs:
         cache: maven
 
     - name: Cache Maven dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
@@ -53,7 +53,7 @@ jobs:
       run: mvn clean package -DskipTests
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jira-insight-desktop-jar
         path: target/*.jar
@@ -78,7 +78,7 @@ jobs:
         cache: maven
 
     - name: Cache SonarCloud packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.sonar/cache
         key: ${{ runner.os }}-sonar
@@ -119,7 +119,7 @@ jobs:
         mvn org.owasp:dependency-check-maven:check
 
     - name: Upload security scan results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-scan-results
@@ -167,7 +167,7 @@ jobs:
         echo "Linux installer creation would go here"
 
     - name: Upload platform-specific artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: jira-insight-desktop-${{ matrix.os }}
         path: target/*.jar

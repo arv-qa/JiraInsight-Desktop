@@ -52,7 +52,7 @@ jobs:
         mvn compile spotbugs:check
         
     - name: Upload SpotBugs report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: spotbugs-report
@@ -64,7 +64,7 @@ jobs:
         mvn pmd:check
         
     - name: Upload PMD report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: pmd-report
@@ -101,7 +101,7 @@ jobs:
         fi
         
     - name: Upload Javadoc
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: javadoc
         path: target/site/apidocs/
@@ -138,7 +138,7 @@ jobs:
         name: codecov-umbrella
         
     - name: Upload coverage report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report
         path: target/site/jacoco/
