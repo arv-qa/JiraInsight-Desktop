@@ -16,6 +16,11 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 env:
   JAVA_VERSION: '17'
   MAVEN_OPTS: '-Xmx2048m'
@@ -173,90 +178,88 @@ jobs:
         echo "TAG_NAME=v${VERSION}" >> $GITHUB_ENV
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
+    - name: Create Release Notes
+      run: |
+        cat > release_notes.md << 'EOF'
+        # 🚀 JiraInsight Desktop v${{ env.VERSION }}
+
+        ## 📦 Download
+
+        **Ready-to-run package**: Download `jira-insight-desktop-${{ env.VERSION }}-complete.zip` below
+
+        ### What's included:
+        - ✅ **Executable JAR**: `jira-insight-desktop-${{ env.VERSION }}.jar`
+        - ✅ **Windows Launcher**: `run-jira-insight.bat` (double-click to run)
+        - ✅ **macOS/Linux Launcher**: `run-jira-insight.sh` (double-click to run)
+        - ✅ **Setup Instructions**: `README.txt` with complete setup guide
+
+        ## 🚀 Quick Start
+
+        1. **Download** the complete package below
+        2. **Extract** the ZIP file
+        3. **Run** the launcher for your platform:
+           - **Windows**: Double-click `run-jira-insight.bat`
+           - **macOS/Linux**: Double-click `run-jira-insight.sh`
+        4. **Connect** to your Jira instance and start using!
+
+        ## 📋 System Requirements
+
+        - **Java 17+** (Download from [Adoptium](https://adoptium.net/))
+        - **Memory**: 512 MB RAM minimum
+        - **Storage**: 200 MB free space
+
+        ## 🆕 What's New in v${{ env.VERSION }}
+
+        - Enhanced build process for better reliability
+        - Improved JAR packaging with all dependencies
+        - Simplified installation with launcher scripts
+        - Better error handling and user feedback
+
+        ## 🛠️ Alternative Installation
+
+        If you prefer to run the JAR directly:
+        ```bash
+        java -jar jira-insight-desktop-${{ env.VERSION }}.jar
+        ```
+
+        ## 📚 Documentation
+
+        - [README](https://github.com/arv-qa/JiraInsight-Desktop/blob/main/README.md)
+        - [Issues & Support](https://github.com/arv-qa/JiraInsight-Desktop/issues)
+
+        ---
+
+        **Full Changelog**: [View Changes](https://github.com/${{ github.repository }}/compare/v1.0.0...v${{ env.VERSION }})
+        EOF
+
+    - name: Create Release with GitHub CLI
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ env.TAG_NAME }}
-        release_name: "JiraInsight Desktop v${{ env.VERSION }}"
-        draft: false
-        prerelease: false
-        body: |
-          # 🚀 JiraInsight Desktop v${{ env.VERSION }}
-          
-          ## 📦 Download
-          
-          **Ready-to-run package**: Download `jira-insight-desktop-${{ env.VERSION }}-complete.zip` below
-          
-          ### What's included:
-          - ✅ **Executable JAR**: `jira-insight-desktop-${{ env.VERSION }}.jar`
-          - ✅ **Windows Launcher**: `run-jira-insight.bat` (double-click to run)
-          - ✅ **macOS/Linux Launcher**: `run-jira-insight.sh` (double-click to run)
-          - ✅ **Setup Instructions**: `README.txt` with complete setup guide
-          
-          ## 🚀 Quick Start
-          
-          1. **Download** the complete package below
-          2. **Extract** the ZIP file
-          3. **Run** the launcher for your platform:
-             - **Windows**: Double-click `run-jira-insight.bat`
-             - **macOS/Linux**: Double-click `run-jira-insight.sh`
-          4. **Connect** to your Jira instance and start using!
-          
-          ## 📋 System Requirements
-          
-          - **Java 17+** (Download from [Adoptium](https://adoptium.net/))
-          - **Memory**: 512 MB RAM minimum
-          - **Storage**: 200 MB free space
-          
-          ## 🆕 What's New in v${{ env.VERSION }}
-          
-          - Enhanced build process for better reliability
-          - Improved JAR packaging with all dependencies
-          - Simplified installation with launcher scripts
-          - Better error handling and user feedback
-          
-          ## 🛠️ Alternative Installation
-          
-          If you prefer to run the JAR directly:
-          ```bash
-          java -jar jira-insight-desktop-${{ env.VERSION }}.jar
-          ```
-          
-          ## 📚 Documentation
-          
-          - [README](https://github.com/arv-qa/JiraInsight-Desktop/blob/main/README.md)
-          - [Issues & Support](https://github.com/arv-qa/JiraInsight-Desktop/issues)
-          
-          ---
-          
-          **Full Changelog**: [View Changes](https://github.com/${{ github.repository }}/compare/v1.0.0...v${{ env.VERSION }})
-          
-    - name: Create ZIP package
       run: |
+        # Create the tag first
+        git tag ${{ env.TAG_NAME }}
+        git push origin ${{ env.TAG_NAME }}
+
+        # Create the release
+        gh release create ${{ env.TAG_NAME }} \
+          --title "JiraInsight Desktop v${{ env.VERSION }}" \
+          --notes-file release_notes.md \
+          --latest
+          
+    - name: Create ZIP package and upload assets
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Create ZIP package
         cd release-package
         zip -r ../jira-insight-desktop-${{ env.VERSION }}-complete.zip .
         cd ..
         ls -la *.zip
-        
-    - name: Upload Complete Package to Release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: jira-insight-desktop-${{ env.VERSION }}-complete.zip
-        asset_name: jira-insight-desktop-${{ env.VERSION }}-complete.zip
-        asset_content_type: application/zip
-        
-    - name: Upload JAR to Release
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: release-package/jira-insight-desktop-${{ env.VERSION }}.jar
-        asset_name: jira-insight-desktop-${{ env.VERSION }}.jar
-        asset_content_type: application/java-archive
+
+        # Upload assets to the release
+        gh release upload ${{ env.TAG_NAME }} \
+          jira-insight-desktop-${{ env.VERSION }}-complete.zip \
+          release-package/jira-insight-desktop-${{ env.VERSION }}.jar
+
+        echo "✅ Release created successfully with downloadable assets!"
+        echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ env.TAG_NAME }}"
