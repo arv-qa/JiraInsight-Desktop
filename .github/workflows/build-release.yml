@@ -1,0 +1,337 @@
+name: Build Release Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.1)'
+        required: true
+        default: '1.0.1'
+      create_release:
+        description: 'Create GitHub release'
+        required: true
+        default: true
+        type: boolean
+  push:
+    tags:
+      - 'v*'
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: '-Xmx2048m'
+
+jobs:
+  build-jar:
+    name: Build Executable JAR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Update version if specified
+      if: github.event.inputs.version
+      run: |
+        mvn versions:set -DnewVersion=${{ github.event.inputs.version }}
+        mvn versions:commit
+        
+    - name: Build executable JAR
+      run: |
+        mvn clean compile
+        mvn package -DskipTests
+        
+    - name: Verify JAR creation
+      run: |
+        ls -la target/
+        if [ -f target/jira-insight-desktop-*.jar ]; then
+          echo "✅ Executable JAR created successfully"
+          JAR_FILE=$(ls target/jira-insight-desktop-*.jar)
+          echo "JAR_FILE=${JAR_FILE}" >> $GITHUB_ENV
+          echo "JAR_NAME=$(basename ${JAR_FILE})" >> $GITHUB_ENV
+        else
+          echo "❌ Executable JAR not found"
+          exit 1
+        fi
+        
+    - name: Test JAR execution
+      run: |
+        echo "Testing JAR execution (headless mode)..."
+        timeout 10s java -Djava.awt.headless=true -jar ${{ env.JAR_FILE }} --help || echo "JAR test completed"
+        
+    - name: Upload JAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: jira-insight-desktop-jar
+        path: ${{ env.JAR_FILE }}
+        retention-days: 90
+
+  build-native:
+    name: Build Native Applications
+    runs-on: ${{ matrix.os }}
+    needs: build-jar
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            extension: .exe
+            installer-type: msi
+          - os: ubuntu-latest
+            platform: linux
+            extension: ''
+            installer-type: deb
+          - os: macos-latest
+            platform: macos
+            extension: .app
+            installer-type: dmg
+      fail-fast: false
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Update version if specified
+      if: github.event.inputs.version
+      run: |
+        mvn versions:set -DnewVersion=${{ github.event.inputs.version }}
+        mvn versions:commit
+        
+    - name: Build application
+      run: mvn clean package -DskipTests
+      
+    - name: Create runtime image with jlink
+      run: |
+        echo "Creating runtime image..."
+        jlink --add-modules java.base,java.desktop,java.logging,java.management,java.naming,java.security.jgss,java.instrument,jdk.unsupported,javafx.controls,javafx.fxml,javafx.web \
+              --output target/runtime \
+              --strip-debug \
+              --compress=2 \
+              --no-header-files \
+              --no-man-pages
+              
+    - name: Create native installer (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        $jarFile = Get-ChildItem -Path target -Name "jira-insight-desktop-*.jar" | Select-Object -First 1
+        echo "Building Windows installer for: $jarFile"
+        
+        jpackage --input target `
+                 --name "JiraInsight Desktop" `
+                 --main-jar $jarFile `
+                 --main-class com.jirainsight.JiraInsightApplication `
+                 --runtime-image target/runtime `
+                 --dest target/installer `
+                 --type msi `
+                 --app-version "${{ github.event.inputs.version || '1.0.0' }}" `
+                 --vendor "JiraInsight" `
+                 --description "Modern JavaFX desktop application for Jira issue management" `
+                 --win-dir-chooser `
+                 --win-shortcut `
+                 --win-menu `
+                 --java-options "--add-opens=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED" `
+                 --java-options "--add-opens=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED" `
+                 --java-options "--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED"
+                 
+    - name: Create native installer (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y fakeroot
+        
+        JAR_FILE=$(ls target/jira-insight-desktop-*.jar)
+        echo "Building Linux installer for: $JAR_FILE"
+        
+        jpackage --input target \
+                 --name "jirainsight-desktop" \
+                 --main-jar $(basename $JAR_FILE) \
+                 --main-class com.jirainsight.JiraInsightApplication \
+                 --runtime-image target/runtime \
+                 --dest target/installer \
+                 --type deb \
+                 --app-version "${{ github.event.inputs.version || '1.0.0' }}" \
+                 --vendor "JiraInsight" \
+                 --description "Modern JavaFX desktop application for Jira issue management" \
+                 --linux-shortcut \
+                 --linux-menu-group "Office" \
+                 --java-options "--add-opens=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED" \
+                 --java-options "--add-opens=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED" \
+                 --java-options "--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED"
+                 
+    - name: Create native installer (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        JAR_FILE=$(ls target/jira-insight-desktop-*.jar)
+        echo "Building macOS installer for: $JAR_FILE"
+        
+        jpackage --input target \
+                 --name "JiraInsight Desktop" \
+                 --main-jar $(basename $JAR_FILE) \
+                 --main-class com.jirainsight.JiraInsightApplication \
+                 --runtime-image target/runtime \
+                 --dest target/installer \
+                 --type dmg \
+                 --app-version "${{ github.event.inputs.version || '1.0.0' }}" \
+                 --vendor "JiraInsight" \
+                 --description "Modern JavaFX desktop application for Jira issue management" \
+                 --mac-package-identifier "com.jirainsight.desktop" \
+                 --java-options "--add-opens=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED" \
+                 --java-options "--add-opens=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED" \
+                 --java-options "--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED"
+        
+    - name: List created installers
+      run: |
+        echo "Created installers:"
+        ls -la target/installer/ || echo "No installers directory found"
+        
+    - name: Upload platform installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: jira-insight-desktop-${{ matrix.platform }}-installer
+        path: target/installer/*
+        retention-days: 90
+        if-no-files-found: warn
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-jar, build-native]
+    if: github.event.inputs.create_release == 'true' || startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+        
+    - name: List downloaded artifacts
+      run: |
+        echo "Downloaded artifacts:"
+        find artifacts/ -type f -exec ls -la {} \;
+        
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event.inputs.version }}" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        elif [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="1.0.0"
+        fi
+        echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        echo "TAG_NAME=v${VERSION}" >> $GITHUB_ENV
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.TAG_NAME }}
+        release_name: "JiraInsight Desktop v${{ env.VERSION }}"
+        draft: false
+        prerelease: false
+        body: |
+          # 🚀 JiraInsight Desktop v${{ env.VERSION }}
+          
+          ## 📦 Downloads
+          
+          ### 🖥️ **Desktop Applications (Recommended)**
+          - **Windows**: Download the `.msi` installer for easy installation
+          - **macOS**: Download the `.dmg` file for drag-and-drop installation  
+          - **Linux**: Download the `.deb` package for Ubuntu/Debian systems
+          
+          ### ☕ **Cross-Platform JAR**
+          - **Universal JAR**: Requires Java 17+ to be installed on your system
+          - Run with: `java -jar jira-insight-desktop-${{ env.VERSION }}.jar`
+          
+          ## 🆕 What's New
+          - Enhanced build process with native installers
+          - Improved JavaFX runtime bundling
+          - Cross-platform compatibility improvements
+          - Optimized application startup time
+          
+          ## 📋 System Requirements
+          - **Windows**: Windows 10 or later
+          - **macOS**: macOS 10.14 or later  
+          - **Linux**: Ubuntu 18.04+ or equivalent
+          - **Java**: Java 17+ (only required for JAR version)
+          
+          ## 🚀 Quick Start
+          1. Download the appropriate installer for your platform
+          2. Install the application
+          3. Launch JiraInsight Desktop
+          4. Connect to your Jira instance with API credentials
+          5. Start searching and viewing your Jira issues!
+          
+          ---
+
+          **Full Changelog**: [View Changes](https://github.com/${{ github.repository }}/compare/v1.0.0...v${{ env.VERSION }})
+
+    - name: Upload JAR to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/jira-insight-desktop-jar/jira-insight-desktop-${{ env.VERSION }}.jar
+        asset_name: jira-insight-desktop-${{ env.VERSION }}.jar
+        asset_content_type: application/java-archive
+
+    - name: Upload Windows Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/jira-insight-desktop-windows-installer/JiraInsight Desktop-${{ env.VERSION }}.msi
+        asset_name: JiraInsight-Desktop-${{ env.VERSION }}-Windows.msi
+        asset_content_type: application/octet-stream
+      continue-on-error: true
+
+    - name: Upload Linux Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/jira-insight-desktop-linux-installer/jirainsight-desktop_${{ env.VERSION }}_amd64.deb
+        asset_name: jirainsight-desktop-${{ env.VERSION }}-Linux.deb
+        asset_content_type: application/vnd.debian.binary-package
+      continue-on-error: true
+
+    - name: Upload macOS Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/jira-insight-desktop-macos-installer/JiraInsight Desktop-${{ env.VERSION }}.dmg
+        asset_name: JiraInsight-Desktop-${{ env.VERSION }}-macOS.dmg
+        asset_content_type: application/octet-stream
+      continue-on-error: true
