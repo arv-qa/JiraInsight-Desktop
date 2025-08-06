@@ -159,8 +159,10 @@ jobs:
       
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
-      if: success()
+      if: success() && hashFiles('target/site/apidocs/**') != ''
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./target/site/apidocs
         destination_dir: javadoc
+        force_orphan: true
+      continue-on-error: true

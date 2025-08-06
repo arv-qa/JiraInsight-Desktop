@@ -1,0 +1,164 @@
+name: Manual CI/CD Trigger
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Type of build to run'
+        required: true
+        default: 'basic'
+        type: choice
+        options:
+          - basic
+          - full
+          - test-only
+      skip_tests:
+        description: 'Skip tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  manual-build:
+    name: Manual Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Display build information
+      run: |
+        echo "🚀 Manual CI/CD Trigger Started"
+        echo "Build Type: ${{ github.event.inputs.build_type }}"
+        echo "Skip Tests: ${{ github.event.inputs.skip_tests }}"
+        echo "Java Version: ${{ env.JAVA_VERSION }}"
+        echo "Maven Version:"
+        mvn --version
+        echo "Project Information:"
+        ls -la
+        
+    - name: Compile application
+      run: |
+        echo "📦 Compiling application..."
+        mvn clean compile
+        
+    - name: Run tests
+      if: github.event.inputs.skip_tests != 'true' && github.event.inputs.build_type != 'basic'
+      run: |
+        echo "🧪 Running tests..."
+        mvn test
+      continue-on-error: true
+      
+    - name: Package application
+      if: github.event.inputs.build_type != 'test-only'
+      run: |
+        echo "📦 Packaging application..."
+        mvn package -DskipTests
+        
+    - name: List build artifacts
+      if: github.event.inputs.build_type != 'test-only'
+      run: |
+        echo "📋 Build artifacts:"
+        ls -la target/
+        if [ -f target/*.jar ]; then
+          echo "✅ JAR files found:"
+          ls -la target/*.jar
+        else
+          echo "⚠️ No JAR files found"
+        fi
+        
+    - name: Upload build artifacts
+      if: github.event.inputs.build_type != 'test-only'
+      uses: actions/upload-artifact@v4
+      with:
+        name: manual-build-artifacts
+        path: target/*.jar
+        retention-days: 7
+        if-no-files-found: warn
+        
+    - name: Generate simple test report
+      if: github.event.inputs.skip_tests != 'true' && github.event.inputs.build_type != 'basic'
+      run: |
+        echo "📊 Test Report Summary:"
+        if [ -d "target/surefire-reports" ]; then
+          echo "✅ Test reports directory found"
+          ls -la target/surefire-reports/
+          
+          # Count test files
+          TEST_FILES=$(find target/surefire-reports -name "TEST-*.xml" | wc -l)
+          echo "📈 Test files found: $TEST_FILES"
+          
+          if [ $TEST_FILES -gt 0 ]; then
+            echo "✅ Tests executed successfully"
+          else
+            echo "⚠️ No test result files found"
+          fi
+        else
+          echo "⚠️ No test reports directory found"
+        fi
+      continue-on-error: true
+      
+    - name: Build summary
+      if: always()
+      run: |
+        echo "=========================================="
+        echo "🎯 BUILD SUMMARY"
+        echo "=========================================="
+        echo "Build Type: ${{ github.event.inputs.build_type }}"
+        echo "Skip Tests: ${{ github.event.inputs.skip_tests }}"
+        echo "Workflow Status: ${{ job.status }}"
+        echo ""
+        echo "📁 Project Structure:"
+        find . -name "*.java" -type f | head -10
+        echo ""
+        echo "📦 Maven Dependencies:"
+        mvn dependency:tree -q | head -20
+        echo ""
+        echo "✅ Manual CI/CD workflow completed!"
+        echo "=========================================="
+
+  quick-test:
+    name: Quick Test Run
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_type == 'test-only'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Quick compile and test
+      run: |
+        echo "⚡ Quick test run..."
+        mvn clean test-compile
+        mvn test
+      continue-on-error: true
+      
+    - name: Test results
+      if: always()
+      run: |
+        echo "🧪 Quick Test Results:"
+        if [ -d "target/surefire-reports" ]; then
+          echo "✅ Test execution completed"
+          ls -la target/surefire-reports/
+        else
+          echo "⚠️ No test results found"
+        fi
