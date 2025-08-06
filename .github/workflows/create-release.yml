@@ -1,0 +1,211 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      release_type:
+        description: 'Type of release'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      create_tag:
+        description: 'Create Git tag'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: 📋 Validate release version
+      run: |
+        echo "🔍 Validating release version: ${{ github.event.inputs.version }}"
+        
+        # Check version format (basic semver validation)
+        if [[ ! "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "❌ Invalid version format. Use semantic versioning (e.g., 1.0.0)"
+          exit 1
+        fi
+        
+        echo "✅ Version format is valid"
+        
+    - name: 🏗️ Build release artifacts
+      run: |
+        echo "🏗️ Building release artifacts..."
+        mvn clean package -DskipTests
+        
+        echo "📦 Build artifacts created:"
+        ls -la target/*.jar
+        
+    - name: 🧪 Run tests (optional)
+      run: |
+        echo "🧪 Running tests for release validation..."
+        mvn test
+      continue-on-error: true
+      
+    - name: 📝 Generate release notes
+      id: release_notes
+      run: |
+        echo "📝 Generating release notes..."
+        
+        RELEASE_NOTES="## JiraInsight Desktop v${{ github.event.inputs.version }}
+
+### 🎉 What's New
+- Modern JavaFX desktop application for Jira issue management
+- Secure API token authentication
+- Quick issue search and advanced JQL queries
+- Detailed issue view with subtasks and comments
+- Cross-platform compatibility (Windows, macOS, Linux)
+
+### 📥 Installation
+1. Download the JAR file from the assets below
+2. Ensure Java 17+ is installed on your system
+3. Run: \`java -jar jira-insight-desktop-${{ github.event.inputs.version }}.jar\`
+
+### 🔧 System Requirements
+- **Java**: 17 or higher
+- **Memory**: 512MB RAM minimum (1GB recommended)
+- **Storage**: 100MB disk space
+- **OS**: Windows 10+, macOS 10.14+, or Linux with GUI
+
+### 🚀 Features
+- **Secure Authentication**: API token-based authentication
+- **Advanced Search**: JQL query support with syntax highlighting
+- **Issue Management**: View, edit, and manage Jira issues
+- **Responsive UI**: Modern JavaFX interface
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+
+### 🐛 Bug Reports & Support
+- **Issues**: [GitHub Issues](https://github.com/${{ github.repository }}/issues)
+- **Documentation**: [README](https://github.com/${{ github.repository }}/blob/main/README.md)
+- **Discussions**: [GitHub Discussions](https://github.com/${{ github.repository }}/discussions)
+
+### 📊 Release Information
+- **Version**: ${{ github.event.inputs.version }}
+- **Release Type**: ${{ github.event.inputs.release_type }}
+- **Build Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+- **Commit**: ${{ github.sha }}
+- **Branch**: ${{ github.ref_name }}
+
+---
+*Built with ❤️ using GitHub Actions*"
+
+        echo "RELEASE_NOTES<<EOF" >> $GITHUB_OUTPUT
+        echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: 🏷️ Create Git tag
+      if: github.event.inputs.create_tag == 'true'
+      run: |
+        echo "🏷️ Creating Git tag: v${{ github.event.inputs.version }}"
+        
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        git tag -a "v${{ github.event.inputs.version }}" -m "Release version ${{ github.event.inputs.version }}"
+        git push origin "v${{ github.event.inputs.version }}"
+        
+    - name: 🎉 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: "v${{ github.event.inputs.version }}"
+        name: "JiraInsight Desktop v${{ github.event.inputs.version }}"
+        body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+        files: |
+          target/*.jar
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 📢 Create release announcement
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { data: release } = await github.rest.repos.getLatestRelease({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🎉 JiraInsight Desktop v${{ github.event.inputs.version }} Released!`,
+            body: `## 🚀 New Release Available!
+
+**JiraInsight Desktop v${{ github.event.inputs.version }}** has been released!
+
+### 📥 Quick Download
+- **[Download JAR](${release.assets[0]?.browser_download_url || release.html_url})**
+- **[View Release Notes](${release.html_url})**
+- **[All Releases](https://github.com/${{ github.repository }}/releases)**
+
+### 🔧 Quick Start
+\`\`\`bash
+# Download and run (requires Java 17+)
+java -jar jira-insight-desktop-${{ github.event.inputs.version }}.jar
+\`\`\`
+
+### 📚 Resources
+- **[Documentation](https://github.com/${{ github.repository }}/blob/main/README.md)**
+- **[User Guide](https://github.com/${{ github.repository }}/wiki)**
+- **[Report Issues](https://github.com/${{ github.repository }}/issues)**
+
+### 🎯 What's New
+Check out the [full release notes](${release.html_url}) for detailed information about new features, improvements, and bug fixes.
+
+---
+*This is an automated release announcement created by GitHub Actions.*`,
+            labels: ['release', 'announcement', 'v${{ github.event.inputs.version }}']
+          });
+          
+    - name: ✅ Release Summary
+      if: always()
+      run: |
+        echo "✅ Release Creation Summary"
+        echo "=========================="
+        echo "Version: ${{ github.event.inputs.version }}"
+        echo "Type: ${{ github.event.inputs.release_type }}"
+        echo "Pre-release: ${{ github.event.inputs.prerelease }}"
+        echo "Create tag: ${{ github.event.inputs.create_tag }}"
+        echo "Workflow: ${{ github.workflow }}"
+        echo "Run: ${{ github.run_number }}"
+        echo "Status: ${{ job.status }}"
+        echo ""
+        echo "🔗 Links:"
+        echo "- Repository: https://github.com/${{ github.repository }}"
+        echo "- Releases: https://github.com/${{ github.repository }}/releases"
+        echo "- Actions: https://github.com/${{ github.repository }}/actions"
+        echo ""
+        echo "🎉 Release workflow completed!"
