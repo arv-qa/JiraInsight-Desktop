@@ -23,6 +23,8 @@
         <h2.version>2.2.224</h2.version>
         <junit.version>5.10.1</junit.version>
         <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
+        <!-- Skip dependency check if NVD_API_KEY is not set -->
+        <skipDependencyCheck>false</skipDependencyCheck>
     </properties>
 
     <dependencies>
@@ -250,10 +252,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <!-- Properties for dependency check configuration -->
-    <properties>
-        <!-- Skip dependency check if NVD_API_KEY is not set -->
-        <skipDependencyCheck>false</skipDependencyCheck>
-    </properties>
 </project>
