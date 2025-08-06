@@ -14,15 +14,17 @@
     <description>A modern JavaFX desktop application for viewing and searching Jira issues</description>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <javafx.version>21.0.1</javafx.version>
-        <jackson.version>2.16.1</jackson.version>
-        <okhttp.version>4.12.0</okhttp.version>
-        <h2.version>2.2.224</h2.version>
-        <junit.version>5.10.1</junit.version>
-        <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
+        <!-- JavaFX 11.0.2 is the last version that works well with Java 8 -->
+        <javafx.version>11.0.2</javafx.version>
+        <!-- Use compatible versions for Java 8 -->
+        <jackson.version>2.15.4</jackson.version>
+        <okhttp.version>4.9.3</okhttp.version>
+        <h2.version>2.1.214</h2.version>
+        <junit.version>5.8.2</junit.version>
+        <javafx.maven.plugin.version>0.0.6</javafx.maven.plugin.version>
         <!-- Skip dependency check if NVD_API_KEY is not set -->
         <skipDependencyCheck>false</skipDependencyCheck>
     </properties>
@@ -39,11 +41,7 @@
             <artifactId>javafx-fxml</artifactId>
             <version>${javafx.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-web</artifactId>
-            <version>${javafx.version}</version>
-        </dependency>
+        <!-- JavaFX Web removed for Java 8 compatibility -->
 
         <!-- HTTP Client -->
         <dependency>
@@ -143,7 +141,7 @@
                 <version>${javafx.maven.plugin.version}</version>
                 <configuration>
                     <mainClass>com.jirainsight.JiraInsightApplication</mainClass>
-                    <commandlineArgs>--add-opens javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED --add-opens javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED --add-opens javafx.base/com.sun.javafx.binding=ALL-UNNAMED --add-opens javafx.base/com.sun.javafx.event=ALL-UNNAMED --add-opens javafx.graphics/com.sun.javafx.util=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED</commandlineArgs>
+                    <!-- Removed --add-opens arguments for Java 8 compatibility -->
                 </configuration>
                 <executions>
                     <execution>
@@ -195,35 +193,7 @@
                 </executions>
             </plugin>
 
-            <!-- JPackage Plugin for Native Installers -->
-            <plugin>
-                <groupId>org.panteleyev</groupId>
-                <artifactId>jpackage-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <configuration>
-                    <name>JiraInsight</name>
-                    <appVersion>${project.version}</appVersion>
-                    <vendor>JiraInsight</vendor>
-                    <destination>target/installer</destination>
-                    <module>jira.insight.desktop/com.jirainsight.JiraInsightApplication</module>
-                    <runtimeImage>target/image</runtimeImage>
-                    <javaOptions>
-                        <option>-Dfile.encoding=UTF-8</option>
-                        <option>--add-opens=javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED</option>
-                        <option>--add-opens=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</option>
-                        <option>--add-opens=javafx.base/com.sun.javafx.binding=ALL-UNNAMED</option>
-                        <option>--add-opens=javafx.base/com.sun.javafx.event=ALL-UNNAMED</option>
-                        <option>--add-opens=javafx.graphics/com.sun.javafx.util=ALL-UNNAMED</option>
-                        <option>--add-opens=java.base/java.lang.reflect=ALL-UNNAMED</option>
-                    </javaOptions>
-                    <linuxShortcut>true</linuxShortcut>
-                    <linuxMenuGroup>Office</linuxMenuGroup>
-                    <winDirChooser>true</winDirChooser>
-                    <winShortcut>true</winShortcut>
-                    <winMenu>true</winMenu>
-                    <macPackageIdentifier>com.jirainsight.desktop</macPackageIdentifier>
-                </configuration>
-            </plugin>
+            <!-- JPackage Plugin removed for Java 8 compatibility -->
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

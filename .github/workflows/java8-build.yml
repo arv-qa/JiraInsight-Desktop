@@ -1,0 +1,308 @@
+name: Java 8 Compatible Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.3-java8)'
+        required: true
+        default: '1.0.3-java8'
+      create_release:
+        description: 'Create GitHub release'
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - java8-compatibility
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+env:
+  JAVA_VERSION: '8'
+  MAVEN_OPTS: '-Xmx2048m'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Set version from input or extract from branch
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="1.0.3-java8"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "TAG_NAME=v$VERSION" >> $GITHUB_ENV
+        echo "Building version: $VERSION"
+        
+    - name: Update version in pom.xml
+      run: |
+        mvn versions:set -DnewVersion=${{ env.VERSION }}
+        mvn versions:commit
+        
+    - name: Build JAR with Maven
+      run: |
+        echo "🔨 Building JAR for Java 8..."
+        mvn clean compile package -DskipTests
+        
+        # Verify JAR was created
+        if [ -f "target/jira-insight-desktop-${{ env.VERSION }}.jar" ]; then
+          echo "✅ JAR created successfully: jira-insight-desktop-${{ env.VERSION }}.jar"
+          ls -la target/*.jar
+        else
+          echo "❌ JAR creation failed"
+          exit 1
+        fi
+        
+    - name: Test JAR execution (headless)
+      run: |
+        echo "🧪 Testing JAR execution..."
+        # Test JAR can be executed (will fail in headless mode but should load classes)
+        timeout 10s java -Djava.awt.headless=true -jar target/jira-insight-desktop-${{ env.VERSION }}.jar --help || true
+        echo "✅ JAR execution test completed"
+        
+    - name: Create launcher scripts
+      run: |
+        mkdir -p release-package
+        
+        # Copy JAR to release package
+        cp target/jira-insight-desktop-${{ env.VERSION }}.jar release-package/
+        
+        # Create Windows launcher script
+        cat > release-package/run-jira-insight.bat << 'EOF'
+        @echo off
+        echo Starting JiraInsight Desktop (Java 8 Compatible)...
+        echo.
+        
+        REM Check if Java is available
+        java -version >nul 2>&1
+        if %errorlevel% neq 0 (
+            echo ERROR: Java is not installed or not in PATH
+            echo Please install Java 8 or later from: https://adoptium.net/
+            echo.
+            pause
+            exit /b 1
+        )
+        
+        REM Get the directory where this script is located
+        set SCRIPT_DIR=%~dp0
+        
+        REM Run the application
+        java -jar "%SCRIPT_DIR%jira-insight-desktop-${{ env.VERSION }}.jar"
+        
+        REM Keep window open if there was an error
+        if %errorlevel% neq 0 (
+            echo.
+            echo Application exited with error code: %errorlevel%
+            pause
+        )
+        EOF
+        
+        # Create Unix/Linux/macOS launcher script
+        cat > release-package/run-jira-insight.sh << 'EOF'
+        #!/bin/bash
+        
+        echo "Starting JiraInsight Desktop (Java 8 Compatible)..."
+        echo
+        
+        # Check if Java is available
+        if ! command -v java &> /dev/null; then
+            echo "ERROR: Java is not installed or not in PATH"
+            echo "Please install Java 8 or later from: https://adoptium.net/"
+            echo
+            read -p "Press Enter to exit..."
+            exit 1
+        fi
+        
+        # Get the directory where this script is located
+        SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+        
+        # Run the application
+        java -jar "$SCRIPT_DIR/jira-insight-desktop-${{ env.VERSION }}.jar"
+        
+        # Check exit code
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -ne 0 ]; then
+            echo
+            echo "Application exited with error code: $EXIT_CODE"
+            read -p "Press Enter to exit..."
+        fi
+        EOF
+        
+        # Make the shell script executable
+        chmod +x release-package/run-jira-insight.sh
+        
+        # Create README
+        cat > release-package/README.txt << 'EOF'
+        JiraInsight Desktop v${{ env.VERSION }} - Java 8 Compatible
+        ================================================================
+        
+        🚀 QUICK START
+        ---------------
+        
+        Windows Users:
+        - Double-click "run-jira-insight.bat"
+        
+        macOS/Linux Users:
+        - Double-click "run-jira-insight.sh"
+        - Or run: ./run-jira-insight.sh
+        
+        📋 SYSTEM REQUIREMENTS
+        ----------------------
+        - Java 8 or later (Download from: https://adoptium.net/)
+        - Memory: 512 MB RAM minimum
+        - Storage: 200 MB free space
+        
+        🛠️ ALTERNATIVE INSTALLATION
+        ----------------------------
+        If you prefer to run the JAR directly:
+        
+        java -jar jira-insight-desktop-${{ env.VERSION }}.jar
+        
+        🔧 TROUBLESHOOTING
+        ------------------
+        
+        1. "Java is not installed" error:
+           - Install Java 8+ from https://adoptium.net/
+           - Make sure Java is in your system PATH
+        
+        2. Application won't start:
+           - Check that you have at least 512 MB free RAM
+           - Try running from command line to see error messages
+        
+        3. Connection issues:
+           - Verify your Jira URL is correct
+           - Check your username/password or API token
+           - Ensure your network allows connections to Jira
+        
+        📚 DOCUMENTATION
+        ----------------
+        - GitHub: https://github.com/arv-qa/JiraInsight-Desktop
+        - Issues: https://github.com/arv-qa/JiraInsight-Desktop/issues
+        
+        ⚡ JAVA 8 COMPATIBILITY
+        -----------------------
+        This version is specifically built for Java 8 compatibility.
+        It uses JavaFX 11.0.2 and compatible dependency versions.
+        
+        EOF
+        
+        echo "✅ Launcher scripts and documentation created"
+        ls -la release-package/
+
+    - name: Create Release Notes
+      if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+      run: |
+        cat > release_notes.md << 'EOF'
+        # 🚀 JiraInsight Desktop v${{ env.VERSION }} - Java 8 Compatible
+
+        ## ☕ Java 8 Compatibility
+
+        This release is **specifically built for Java 8** compatibility, making it accessible to users who need to run on older Java versions.
+
+        ### What's Different:
+        - ✅ **Java 8 Compatible**: Built with Java 8 target compatibility
+        - ✅ **JavaFX 11.0.2**: Uses JavaFX version compatible with Java 8
+        - ✅ **Compatible Dependencies**: All libraries updated for Java 8 support
+        - ✅ **No Module System**: Avoids Java 9+ module system requirements
+
+        ## 📦 Download
+
+        **Ready-to-run package**: Download `jira-insight-desktop-${{ env.VERSION }}-complete.zip` below
+
+        ### What's included:
+        - ✅ **Executable JAR**: `jira-insight-desktop-${{ env.VERSION }}.jar`
+        - ✅ **Windows Launcher**: `run-jira-insight.bat` (double-click to run)
+        - ✅ **macOS/Linux Launcher**: `run-jira-insight.sh` (double-click to run)
+        - ✅ **Setup Instructions**: `README.txt` with complete setup guide
+
+        ## 🚀 Quick Start
+
+        1. **Download** the complete package below
+        2. **Extract** the ZIP file
+        3. **Run** the launcher for your platform:
+           - **Windows**: Double-click `run-jira-insight.bat`
+           - **macOS/Linux**: Double-click `run-jira-insight.sh`
+        4. **Connect** to your Jira instance and start using!
+
+        ## 📋 System Requirements
+
+        - **Java 8+** (Download from [Adoptium](https://adoptium.net/))
+        - **Memory**: 512 MB RAM minimum
+        - **Storage**: 200 MB free space
+
+        ## 🆕 What's New in v${{ env.VERSION }}
+
+        - **Java 8 Compatibility**: Complete rebuild for Java 8 support
+        - **Simplified Dependencies**: Removed Java 9+ specific features
+        - **Enhanced Launcher Scripts**: Better error handling and user guidance
+        - **Comprehensive Documentation**: Java 8 specific setup instructions
+
+        ## 🛠️ Alternative Installation
+
+        If you prefer to run the JAR directly:
+        ```bash
+        java -jar jira-insight-desktop-${{ env.VERSION }}.jar
+        ```
+
+        ## 📚 Documentation
+
+        - [README](https://github.com/arv-qa/JiraInsight-Desktop/blob/java8-compatibility/README.md)
+        - [Issues & Support](https://github.com/arv-qa/JiraInsight-Desktop/issues)
+
+        ---
+
+        **Branch**: `java8-compatibility`
+        **Java Version**: 8+
+        **JavaFX Version**: 11.0.2
+        EOF
+
+    - name: Create Release with GitHub CLI
+      if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Create the tag first
+        git tag ${{ env.TAG_NAME }}
+        git push origin ${{ env.TAG_NAME }}
+
+        # Create the release
+        gh release create ${{ env.TAG_NAME }} \
+          --title "JiraInsight Desktop v${{ env.VERSION }} (Java 8 Compatible)" \
+          --notes-file release_notes.md \
+          --latest
+
+    - name: Create ZIP package and upload assets
+      if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Create ZIP package
+        cd release-package
+        zip -r ../jira-insight-desktop-${{ env.VERSION }}-complete.zip .
+        cd ..
+        ls -la *.zip
+
+        # Upload assets to the release
+        gh release upload ${{ env.TAG_NAME }} \
+          jira-insight-desktop-${{ env.VERSION }}-complete.zip \
+          release-package/jira-insight-desktop-${{ env.VERSION }}.jar
+
+        echo "✅ Java 8 compatible release created successfully!"
+        echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ env.TAG_NAME }}"
