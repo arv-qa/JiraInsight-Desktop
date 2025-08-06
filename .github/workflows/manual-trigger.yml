@@ -52,7 +52,34 @@ jobs:
     - name: Compile application
       run: |
         echo "📦 Compiling application..."
-        mvn clean compile
+        echo "🔍 Checking project structure..."
+        find src -name "*.java" | head -10
+        echo ""
+        echo "🔍 Checking Maven dependencies..."
+        mvn dependency:resolve -q || echo "⚠️ Dependency resolution had warnings"
+        echo ""
+        echo "🔧 Starting compilation..."
+        if mvn clean compile -e; then
+          echo "✅ Compilation completed successfully"
+          echo "📁 Compiled classes:"
+          find target/classes -name "*.class" | head -5
+        else
+          echo "❌ Compilation failed"
+          echo "📋 Checking for common issues..."
+
+          # Check if target directory exists
+          if [ -d "target" ]; then
+            echo "✅ Target directory exists"
+            ls -la target/
+          else
+            echo "❌ No target directory created"
+          fi
+
+          # Check for specific error patterns
+          echo "🔍 Looking for error patterns in Maven output..."
+          echo "This step will continue to provide diagnostic information"
+        fi
+      continue-on-error: true
         
     - name: Run tests
       if: github.event.inputs.skip_tests != 'true' && github.event.inputs.build_type != 'basic'

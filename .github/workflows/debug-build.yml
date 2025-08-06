@@ -1,0 +1,243 @@
+name: Debug Build & Compilation
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug_level:
+        description: 'Debug level'
+        required: true
+        type: choice
+        options:
+          - basic
+          - detailed
+          - verbose
+        default: detailed
+      clean_build:
+        description: 'Clean build (remove target directory)'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: '-Xmx2048m -XX:MaxPermSize=512m'
+
+jobs:
+  debug-compilation:
+    name: Debug Compilation Issues
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🚀 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: ☕ Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: 🔍 System Information
+      run: |
+        echo "🖥️ System Information:"
+        echo "===================="
+        echo "OS: $(uname -a)"
+        echo "Java Version: $(java -version 2>&1)"
+        echo "Maven Version: $(mvn --version)"
+        echo "Available Memory: $(free -h)"
+        echo "Disk Space: $(df -h .)"
+        echo ""
+        
+    - name: 📁 Project Structure Analysis
+      run: |
+        echo "📁 Project Structure:"
+        echo "===================="
+        echo "Root directory:"
+        ls -la
+        echo ""
+        echo "Source structure:"
+        find src -type f -name "*.java" | head -20
+        echo ""
+        echo "Resource files:"
+        find src -type f -name "*.fxml" -o -name "*.css" -o -name "*.xml"
+        echo ""
+        echo "Total Java files: $(find src -name "*.java" | wc -l)"
+        echo ""
+        
+    - name: 📦 Maven Configuration Analysis
+      run: |
+        echo "📦 Maven Configuration:"
+        echo "======================"
+        echo "POM.xml validation:"
+        mvn help:effective-pom -q > effective-pom.xml
+        echo "✅ POM is valid"
+        echo ""
+        echo "Project information:"
+        mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout
+        mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout  
+        mvn help:evaluate -Dexpression=project.version -q -DforceStdout
+        echo ""
+        echo "Java version settings:"
+        mvn help:evaluate -Dexpression=maven.compiler.source -q -DforceStdout
+        mvn help:evaluate -Dexpression=maven.compiler.target -q -DforceStdout
+        echo ""
+        
+    - name: 🔗 Dependency Resolution
+      run: |
+        echo "🔗 Dependency Resolution:"
+        echo "========================"
+        echo "Resolving dependencies..."
+        mvn dependency:resolve -q
+        echo "✅ Dependencies resolved"
+        echo ""
+        echo "Dependency tree (top 30 lines):"
+        mvn dependency:tree -q | head -30
+        echo ""
+        echo "JavaFX dependencies:"
+        mvn dependency:tree -q | grep javafx || echo "No JavaFX dependencies found"
+        echo ""
+        
+    - name: 🧹 Clean Build (if requested)
+      if: github.event.inputs.clean_build == 'true'
+      run: |
+        echo "🧹 Cleaning previous build..."
+        mvn clean
+        echo "✅ Clean completed"
+        echo ""
+        
+    - name: 🔧 Compilation Attempt 1 - Basic
+      run: |
+        echo "🔧 Compilation Attempt 1 - Basic:"
+        echo "================================="
+        echo "Attempting basic compilation..."
+        if mvn compile; then
+          echo "✅ Basic compilation SUCCESSFUL"
+          echo "📁 Compiled classes:"
+          find target/classes -name "*.class" | head -10
+        else
+          echo "❌ Basic compilation FAILED"
+          echo "📋 Compilation errors will be analyzed in next step"
+        fi
+        echo ""
+      continue-on-error: true
+      
+    - name: 🔧 Compilation Attempt 2 - Verbose
+      if: github.event.inputs.debug_level != 'basic'
+      run: |
+        echo "🔧 Compilation Attempt 2 - Verbose:"
+        echo "==================================="
+        echo "Attempting compilation with verbose output..."
+        mvn clean compile -X -e 2>&1 | tail -100
+        echo ""
+      continue-on-error: true
+      
+    - name: 🔧 Compilation Attempt 3 - JavaFX Specific
+      if: github.event.inputs.debug_level == 'verbose'
+      run: |
+        echo "🔧 Compilation Attempt 3 - JavaFX Specific:"
+        echo "==========================================="
+        echo "Checking JavaFX module path..."
+        mvn dependency:build-classpath -q
+        echo ""
+        echo "Attempting compilation with JavaFX options..."
+        mvn clean compile \
+          -Djavafx.runtime.path=/opt/hostedtoolcache/Java_Temurin-Hotspot/17.0.13/x64/lib \
+          -Djavafx.platform=linux \
+          -e 2>&1 | tail -50
+        echo ""
+      continue-on-error: true
+      
+    - name: 📊 Compilation Analysis
+      if: always()
+      run: |
+        echo "📊 Compilation Analysis:"
+        echo "======================="
+        
+        if [ -d "target/classes" ]; then
+          echo "✅ Target classes directory exists"
+          CLASS_COUNT=$(find target/classes -name "*.class" | wc -l)
+          echo "📈 Compiled classes: $CLASS_COUNT"
+          
+          if [ $CLASS_COUNT -gt 0 ]; then
+            echo "✅ Some classes were compiled successfully"
+            echo "📋 Sample compiled classes:"
+            find target/classes -name "*.class" | head -5
+          else
+            echo "❌ No classes were compiled"
+          fi
+        else
+          echo "❌ No target/classes directory found"
+        fi
+        
+        echo ""
+        echo "📋 Maven logs analysis:"
+        if [ -f "target/maven-archiver/pom.properties" ]; then
+          echo "✅ Maven archiver properties found"
+        else
+          echo "❌ No Maven archiver properties"
+        fi
+        
+        echo ""
+        echo "🔍 Error pattern analysis:"
+        if ls target/maven-status/maven-compiler-plugin/compile/default-compile/ 2>/dev/null; then
+          echo "✅ Compiler plugin status found"
+          ls -la target/maven-status/maven-compiler-plugin/compile/default-compile/
+        else
+          echo "❌ No compiler plugin status"
+        fi
+        
+    - name: 🧪 Test Compilation
+      run: |
+        echo "🧪 Test Compilation:"
+        echo "==================="
+        echo "Attempting test compilation..."
+        if mvn test-compile; then
+          echo "✅ Test compilation SUCCESSFUL"
+          if [ -d "target/test-classes" ]; then
+            TEST_CLASS_COUNT=$(find target/test-classes -name "*.class" | wc -l)
+            echo "📈 Compiled test classes: $TEST_CLASS_COUNT"
+          fi
+        else
+          echo "❌ Test compilation FAILED"
+        fi
+        echo ""
+      continue-on-error: true
+      
+    - name: 📋 Final Diagnosis
+      if: always()
+      run: |
+        echo "📋 Final Diagnosis:"
+        echo "=================="
+        echo "Build Status: ${{ job.status }}"
+        echo ""
+        
+        echo "🔍 Common JavaFX Issues Checklist:"
+        echo "- JavaFX dependencies: $(mvn dependency:tree -q | grep -c javafx || echo 0) found"
+        echo "- Main class exists: $([ -f 'src/main/java/com/jirainsight/JiraInsightApplication.java' ] && echo 'YES' || echo 'NO')"
+        echo "- FXML files exist: $(find src -name '*.fxml' | wc -l) found"
+        echo "- CSS files exist: $(find src -name '*.css' | wc -l) found"
+        echo ""
+        
+        echo "💡 Recommendations:"
+        if [ ! -d "target/classes" ]; then
+          echo "- Compilation failed completely - check Maven configuration"
+          echo "- Verify Java 17 compatibility"
+          echo "- Check for missing dependencies"
+        elif [ $(find target/classes -name "*.class" | wc -l) -eq 0 ]; then
+          echo "- Compilation started but no classes generated"
+          echo "- Check for syntax errors in Java files"
+          echo "- Verify package declarations match directory structure"
+        else
+          echo "- Compilation partially successful"
+          echo "- Check for specific class compilation failures"
+          echo "- Review JavaFX module configuration"
+        fi
+        
+        echo ""
+        echo "🚀 Next Steps:"
+        echo "1. Review the compilation logs above"
+        echo "2. Check for specific error messages"
+        echo "3. Verify JavaFX dependencies and versions"
+        echo "4. Ensure Java 17 compatibility"
+        echo "5. Check package structure matches directory layout"
