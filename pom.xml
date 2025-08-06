@@ -141,7 +141,7 @@
                 <version>${javafx.maven.plugin.version}</version>
                 <configuration>
                     <mainClass>com.jirainsight.JiraInsightApplication</mainClass>
-                    <!-- Removed --add-opens arguments for Java 8 compatibility -->
+                    <!-- Removed add-opens arguments for Java 8 compatibility -->
                 </configuration>
                 <executions>
                     <execution>
