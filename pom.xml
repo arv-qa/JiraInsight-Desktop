@@ -204,6 +204,56 @@
                 <artifactId>versions-maven-plugin</artifactId>
                 <version>2.16.2</version>
             </plugin>
+
+            <!-- OWASP Dependency Check with NVD API Key Support -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>9.0.7</version>
+                <configuration>
+                    <!-- NVD API Key Configuration -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <nvdApiDelay>4000</nvdApiDelay>
+                    <nvdMaxRetryCount>10</nvdMaxRetryCount>
+                    <nvdValidForHours>24</nvdValidForHours>
+
+                    <!-- Output Configuration -->
+                    <formats>
+                        <format>HTML</format>
+                        <format>XML</format>
+                        <format>JSON</format>
+                    </formats>
+
+                    <!-- Vulnerability Database Configuration -->
+                    <cveValidForHours>24</cveValidForHours>
+                    <failBuildOnCVSS>8.0</failBuildOnCVSS>
+                    <suppressionFiles>
+                        <suppressionFile>owasp-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+
+                    <!-- Performance Configuration -->
+                    <bundleAuditAnalyzerEnabled>false</bundleAuditAnalyzerEnabled>
+                    <assemblyAnalyzerEnabled>true</assemblyAnalyzerEnabled>
+                    <centralAnalyzerEnabled>true</centralAnalyzerEnabled>
+                    <nexusAnalyzerEnabled>false</nexusAnalyzerEnabled>
+
+                    <!-- Skip if no NVD API key is provided -->
+                    <skip>${skipDependencyCheck}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <!-- Properties for dependency check configuration -->
+    <properties>
+        <!-- Skip dependency check if NVD_API_KEY is not set -->
+        <skipDependencyCheck>false</skipDependencyCheck>
+    </properties>
 </project>

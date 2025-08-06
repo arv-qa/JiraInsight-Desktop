@@ -79,13 +79,22 @@ jobs:
         cache: maven
         
     - name: Run security audit
+      env:
+        NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
       run: |
         # Check if OWASP plugin is configured
         if mvn help:describe -Dplugin=org.owasp:dependency-check-maven > /dev/null 2>&1; then
-          mvn org.owasp:dependency-check-maven:check || echo "Security audit completed with warnings"
+          if [ -n "$NVD_API_KEY" ]; then
+            echo "🔐 Running security audit with NVD API key"
+            mvn org.owasp:dependency-check-maven:check -DnvdApiKey="$NVD_API_KEY"
+          else
+            echo "⚠️ Running security audit without NVD API key (slower)"
+            mvn org.owasp:dependency-check-maven:check -DskipDependencyCheck=false
+          fi
         else
-          echo "OWASP dependency check plugin not configured, skipping security audit"
+          echo "ℹ️ OWASP dependency check plugin not configured, skipping security audit"
         fi
+      continue-on-error: true
         
     - name: Upload security report
       uses: actions/upload-artifact@v4

@@ -146,13 +146,23 @@ jobs:
         cache: maven
 
     - name: Run OWASP Dependency Check
+      env:
+        NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
       run: |
-        # Check if OWASP plugin is configured, if not skip
+        # Check if OWASP plugin is configured
         if mvn help:describe -Dplugin=org.owasp:dependency-check-maven > /dev/null 2>&1; then
-          mvn org.owasp:dependency-check-maven:check || echo "OWASP check completed with warnings"
+          if [ -n "$NVD_API_KEY" ]; then
+            echo "🔐 Running OWASP Dependency Check with NVD API key"
+            mvn org.owasp:dependency-check-maven:check -DnvdApiKey="$NVD_API_KEY"
+          else
+            echo "⚠️ Running OWASP Dependency Check without NVD API key (slower)"
+            echo "💡 Add NVD_API_KEY secret for better performance"
+            mvn org.owasp:dependency-check-maven:check -DskipDependencyCheck=false
+          fi
         else
-          echo "OWASP dependency check plugin not configured, skipping security scan"
+          echo "ℹ️ OWASP dependency check plugin not configured, skipping security scan"
         fi
+      continue-on-error: true
 
     - name: Upload security scan results
       uses: actions/upload-artifact@v4
